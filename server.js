@@ -16,7 +16,6 @@ app.get("/", (req, res) => {
 });
 
 /* ================= EMAIL SETUP ================= */
-
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.in",
   port: 465,
@@ -28,9 +27,7 @@ const transporter = nodemailer.createTransport({
 });
 
 /* ================= AUTO REPLY ROUTE ================= */
-
 app.post("/auto-reply", async (req, res) => {
-
   const { full_name, email, mobile } = req.body;
 
   if (!full_name || !email || !mobile) {
@@ -38,6 +35,12 @@ app.post("/auto-reply", async (req, res) => {
   }
 
   console.log("Incoming Request:", req.body);
+
+  /* ===== FORMAT MOBILE CORRECTLY ===== */
+  const cleanMobile = mobile.replace(/\D/g, ""); // remove spaces, + etc
+  const formattedMobile = cleanMobile.startsWith("91")
+    ? cleanMobile
+    : "91" + cleanMobile;
 
   /* ===== EMAIL SEND ===== */
   try {
@@ -62,7 +65,6 @@ app.post("/auto-reply", async (req, res) => {
     });
 
     console.log("Email Sent ✅");
-
   } catch (emailError) {
     console.error("Email Error:", emailError.message);
   }
@@ -73,7 +75,7 @@ app.post("/auto-reply", async (req, res) => {
       `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
-        to: `91${mobile}`,   // Country code auto add
+        to: formattedMobile,
         type: "text",
         text: {
           body: `Hello ${full_name},
@@ -95,7 +97,6 @@ Our team will contact you shortly.
     );
 
     console.log("WhatsApp Sent ✅");
-
   } catch (waError) {
     console.error(
       "WhatsApp Error:",
@@ -104,11 +105,9 @@ Our team will contact you shortly.
   }
 
   res.json({ status: "success" });
-
 });
 
 /* ================= SERVER START ================= */
-
 app.listen(3000, () => {
   console.log("Auto Reply Server Running on 3000");
 });
