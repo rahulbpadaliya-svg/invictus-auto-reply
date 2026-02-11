@@ -10,6 +10,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+/* ================= ROOT TEST ================= */
+app.get("/", (req, res) => {
+  res.send("Invictus Auto Reply Server Running ✅");
+});
+
 /* ================= EMAIL SETUP ================= */
 
 const transporter = nodemailer.createTransport({
@@ -25,10 +30,17 @@ const transporter = nodemailer.createTransport({
 /* ================= AUTO REPLY ROUTE ================= */
 
 app.post("/auto-reply", async (req, res) => {
-  try {
-    const { full_name, email, mobile } = req.body;
 
-    /* ===== EMAIL SEND ===== */
+  const { full_name, email, mobile } = req.body;
+
+  if (!full_name || !email || !mobile) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  console.log("Incoming Request:", req.body);
+
+  /* ===== EMAIL SEND ===== */
+  try {
     await transporter.sendMail({
       from: `"Invictus Experiences" <${process.env.ZOHO_SMTP_USER}>`,
       to: email,
@@ -49,12 +61,19 @@ app.post("/auto-reply", async (req, res) => {
       `
     });
 
-    /* ===== WHATSAPP SEND ===== */
+    console.log("Email Sent ✅");
+
+  } catch (emailError) {
+    console.error("Email Error:", emailError.message);
+  }
+
+  /* ===== WHATSAPP SEND ===== */
+  try {
     await axios.post(
       `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
-        to: mobile,
+        to: `91${mobile}`,   // Country code auto add
         type: "text",
         text: {
           body: `Hello ${full_name},
@@ -75,13 +94,20 @@ Our team will contact you shortly.
       }
     );
 
-    res.json({ status: "success" });
+    console.log("WhatsApp Sent ✅");
 
-  } catch (error) {
-    console.error(error.response?.data || error.message);
-    res.status(500).json({ status: "error" });
+  } catch (waError) {
+    console.error(
+      "WhatsApp Error:",
+      waError.response?.data || waError.message
+    );
   }
+
+  res.json({ status: "success" });
+
 });
+
+/* ================= SERVER START ================= */
 
 app.listen(3000, () => {
   console.log("Auto Reply Server Running on 3000");
