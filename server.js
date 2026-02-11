@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
-import axios from "axios";
 
 dotenv.config();
 
@@ -12,10 +11,11 @@ app.use(express.json());
 
 /* ================= ROOT TEST ================= */
 app.get("/", (req, res) => {
-  res.send("Invictus Auto Reply Server Running ✅");
+  res.send("Invictus Auto Email Server Running ✅");
 });
 
 /* ================= EMAIL SETUP ================= */
+
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.in",
   port: 465,
@@ -26,88 +26,92 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-/* ================= AUTO REPLY ROUTE ================= */
-app.post("/auto-reply", async (req, res) => {
-  const { full_name, email, mobile } = req.body;
+/* ================= AUTO EMAIL ROUTE ================= */
 
-  if (!full_name || !email || !mobile) {
+app.post("/auto-email", async (req, res) => {
+
+  const { full_name, email } = req.body;
+
+  if (!full_name || !email) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  console.log("Incoming Request:", req.body);
-
-  /* ===== FORMAT MOBILE CORRECTLY ===== */
-  const cleanMobile = mobile.replace(/\D/g, ""); // remove spaces, + etc
-  const formattedMobile = cleanMobile.startsWith("91")
-    ? cleanMobile
-    : "91" + cleanMobile;
-
-  /* ===== EMAIL SEND ===== */
   try {
+
     await transporter.sendMail({
       from: `"Invictus Experiences" <${process.env.ZOHO_SMTP_USER}>`,
       to: email,
       subject: "Thank You for Contacting Invictus Experiences",
       html: `
       <html>
-      <body style="font-family:Arial;background:#f2f2f2;padding:30px;">
-      <div style="max-width:600px;margin:auto;background:white;padding:40px;border-radius:10px;">
-      <h2 style="color:#ff7a00;text-align:center;">Invictus Experiences</h2>
-      <p>Dear ${full_name},</p>
-      <p>We have received your inquiry successfully.</p>
-      <p>Our team will contact you shortly.</p>
-      <p>📞 +91 9898668984</p>
-      <p>Warm regards,<br>Team Invictus Experiences</p>
-      </div>
+      <body style="margin:0;padding:0;background:#f2f2f2;font-family:Arial,sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 15px;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0"
+                style="background:#ffffff;border-radius:10px;padding:40px;max-width:600px;width:100%;">
+                
+                <tr>
+                  <td align="center" style="padding-bottom:20px;">
+                    <h2 style="margin:0;color:#ff7a00;">
+                      Invictus Experiences
+                    </h2>
+                    <p style="margin:5px 0 0;color:#777;font-size:14px;">
+                      Surprise the world, first surprise yourself
+                    </p>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="color:#333;font-size:15px;line-height:1.8;">
+                    <p>Dear ${full_name},</p>
+
+                    <p>
+                      We have successfully received your inquiry.
+                    </p>
+
+                    <p>
+                      Our travel expert team is reviewing your request and will contact you shortly.
+                    </p>
+
+                    <p>
+                      If urgent, please call us:
+                    </p>
+
+                    <p>
+                      📞 +91 9898668984<br>
+                      ✉ invictusexperiences@zohomail.in
+                    </p>
+
+                    <p style="margin-top:25px;">
+                      Warm regards,<br>
+                      <strong>Team Invictus Experiences</strong>
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
       `
     });
 
     console.log("Email Sent ✅");
-  } catch (emailError) {
-    console.error("Email Error:", emailError.message);
+
+    res.json({ status: "success" });
+
+  } catch (error) {
+    console.error("Email Error:", error.message);
+    res.status(500).json({ status: "error" });
   }
 
-  /* ===== WHATSAPP SEND ===== */
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: formattedMobile,
-        type: "text",
-        text: {
-          body: `Hello ${full_name},
-
-Thank you for contacting Invictus Experiences 🌄
-
-We have received your inquiry.
-Our team will contact you shortly.
-
-📞 +91 9898668984`
-        }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    console.log("WhatsApp Sent ✅");
-  } catch (waError) {
-    console.error(
-      "WhatsApp Error:",
-      waError.response?.data || waError.message
-    );
-  }
-
-  res.json({ status: "success" });
 });
 
 /* ================= SERVER START ================= */
+
 app.listen(3000, () => {
-  console.log("Auto Reply Server Running on 3000");
+  console.log("Auto Email Server Running on 3000");
 });
