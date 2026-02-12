@@ -1,59 +1,78 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import nodemailer from "nodemailer";
-
-dotenv.config();
+const express = require("express");
+const nodemailer = require("nodemailer");
+const axios = require("axios");
+require("dotenv").config();
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-/* ROOT */
-app.get("/", (req, res) => {
-  res.send("Invictus Auto Email Server Running ✅");
-});
+app.post("/submit", async (req, res) => {
 
-/* EMAIL ROUTE */
-app.post("/auto-reply", async (req, res) => {
-
-  const { full_name, email } = req.body;
-
-  if (!full_name || !email) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: "smtp.zoho.in",
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.ZOHO_SMTP_USER,
-      pass: process.env.ZOHO_SMTP_PASS
-    }
-  });
+  const { name, email, phone, message } = req.body;
 
   try {
 
-    await transporter.sendMail({
-      from: `"Invictus Experiences" <${process.env.ZOHO_SMTP_USER}>`,
-      to: email,
-      subject: "Thank You for Contacting Invictus Experiences",
-      html: `<h2>Thank you ${full_name}</h2>`
+    /* ================= EMAIL SEND ================= */
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.zoho.in",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
     });
+
+    // Email to Owner
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_USER,
+      subject: "New Inquiry - Invictus",
+      html: `<h3>New Inquiry</h3>
+             <p>Name: ${name}</p>
+             <p>Email: ${email}</p>
+             <p>Phone: ${phone}</p>
+             <p>Message: ${message}</p>`
+    });
+
+    // Email to User
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Thank You for Contacting Invictus",
+      html: `<h3>Hello ${name},</h3>
+             <p>Thank you for your inquiry. Our team will contact you shortly.</p>
+             <br>
+             <p>Invictus Experiences</p>`
+    });
+
+    /* ================= WHATSAPP SEND ================= */
+
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: phone,
+        type: "text",
+        text: {
+          body: `Hello ${name}, 👋\n\nThank you for contacting Invictus Experiences.\nWe will connect with you soon!`
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
     res.json({ success: true });
 
-  } catch (err) {
-    console.log("Email Error:", err.message);
-    res.status(500).json({ error: "Email failed" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Something went wrong" });
   }
-
 });
 
-/* IMPORTANT PART */
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(5000, () => console.log("Server running"));
